@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, Query
 
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from app.database import get_db
 from app.schemas import TaskPublic, TaskUpdate, TaskCreate
-from app.models import Project, User, Task
+from app.models import Project, User, Task, TaskPriority, TaskStatus
 from app.deps import get_current_user
 
 
@@ -52,6 +52,10 @@ def create_tasks(
     )
 def get_tasks(
     project_id: int,
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    status: TaskStatus | None = Query(default=None),
+    priority: TaskPriority | None = Query(default=None),
     db: Session = Depends(get_db), 
     current_user: User = Depends(get_current_user),
 ):
@@ -61,11 +65,20 @@ def get_tasks(
     project = result.scalars().first()
 
     if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+        raise HTTPException(status_code=404, detail="Project not found")
     if project.owner_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
+        raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    tasks = db.execute(select(Task).where(Task.project_id == project_id)).scalars().all()
+    query = select(Task).where(Task.project_id == project_id).order_by(Task.id)
+
+    if status:
+        query = query.where(Task.status == status)
+    if priority:
+        query = query.where(Task.priority == priority)
+
+    query = query.limit(limit).offset(offset)
+
+    tasks = db.execute(query).scalars().all()
 
     return tasks
 

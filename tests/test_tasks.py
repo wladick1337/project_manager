@@ -171,3 +171,42 @@ def test_task_not_found():
         headers=headers,
     )
     assert get_task.status_code == 404
+
+
+def test_task_pagination_and_filtering():
+    headers = get_auth_headers("filter_user@gmail.com")
+
+    # 1. Создаем проект
+    proj = client.post("/projects", json={"title": "Filters Project"}, headers=headers).json()
+    proj_id = proj["id"]
+
+    # 2. Создаем 3 задачи с описанием
+    client.post(
+        f"/projects/{proj_id}/tasks",
+        json={"title": "Task 1", "description": "Desc 1", "status": "todo"},
+        headers=headers,
+    )
+    client.post(
+        f"/projects/{proj_id}/tasks",
+        json={"title": "Task 2", "description": "Desc 2", "status": "todo"},
+        headers=headers,
+    )
+    client.post(
+        f"/projects/{proj_id}/tasks",
+        json={"title": "Task 3", "description": "Desc 3", "status": "in_progress"},
+        headers=headers,
+    )
+
+    # 3. Проверяем фильтрацию по статусу
+    res_todo = client.get(f"/projects/{proj_id}/tasks?status=todo", headers=headers)
+    assert res_todo.status_code == 200
+    assert len(res_todo.json()) == 2
+
+    # 4. Проверяем limit и offset
+    res_limit = client.get(f"/projects/{proj_id}/tasks?limit=2&offset=0", headers=headers)
+    assert len(res_limit.json()) == 2
+    assert res_limit.json()[0]["title"] == "Task 1"
+
+    res_offset = client.get(f"/projects/{proj_id}/tasks?limit=2&offset=2", headers=headers)
+    assert len(res_offset.json()) == 1
+    assert res_offset.json()[0]["title"] == "Task 3"
