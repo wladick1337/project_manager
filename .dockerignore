@@ -1,0 +1,24 @@
+# Git
+.git
+.gitignore
+
+# Python & кэши
+__pycache__
+*.py[cod]
+*$py.class
+.pytest_cache
+.coverage
+htmlcov
+
+# Виртуальное окружение
+.venv
+venv
+ENV
+
+# Секреты и локальные конфиги
+.env
+.env.local
+
+# Системный мусор macOS
+.DS_Store
+*.log
