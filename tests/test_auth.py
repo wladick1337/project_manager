@@ -1,24 +1,5 @@
-from fastapi.testclient import TestClient
-
-from app.main import app
-
-import pytest
-from sqlalchemy import text
-from app.database import engine
-
-client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def clean_db():
-    # Runs before every test: wipes test data
-    with engine.begin() as connection:
-        connection.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE;"))
-    yield
-
-
-def test_register_user_success():
-    response = client.post(
+async def test_register_user_success(client):
+    response = await client.post(
         "/auth/register",
         json={
             "email": "bob@gmail.com",
@@ -36,8 +17,8 @@ def test_register_user_success():
     assert "hashed_password" not in data
 
 
-def test_register_duplicate_email():
-    response = client.post(
+async def test_register_duplicate_email(client):
+    response = await client.post(
         "/auth/register",
         json={
             "email": "bob1@gmail.com",
@@ -47,7 +28,7 @@ def test_register_duplicate_email():
 
     assert response.status_code == 201
 
-    response = client.post(
+    response = await client.post(
         "/auth/register",
         json={
             "email": "bob1@gmail.com",
@@ -60,8 +41,8 @@ def test_register_duplicate_email():
     assert response.json()["detail"] == "Email already registered"
 
 
-def test_login_success():
-    client.post(
+async def test_login_success(client):
+    await client.post(
         "/auth/register",
         json={
             "email": "bob2@gmail.com",
@@ -69,7 +50,7 @@ def test_login_success():
         },
     )
 
-    response = client.post(
+    response = await client.post(
         "/auth/login",
         data={
             "username": "bob2@gmail.com",
@@ -83,8 +64,8 @@ def test_login_success():
     assert data["token_type"] == "bearer"
 
 
-def test_login_wrong_password():
-    client.post(
+async def test_login_wrong_password(client):
+    await client.post(
         "/auth/register",
         json={
             "email": "bob_wrong_pw@gmail.com",
@@ -92,7 +73,7 @@ def test_login_wrong_password():
         },
     )
 
-    response = client.post(
+    response = await client.post(
         "/auth/login",
         data={
             "username": "bob_wrong_pw@gmail.com",
@@ -104,8 +85,8 @@ def test_login_wrong_password():
     assert response.json()["detail"] == "Invalid credentials"
 
 
-def test_login_nonexistent_user():
-    response = client.post(
+async def test_login_nonexistent_user(client):
+    response = await client.post(
         "/auth/login",
         data={
             "username": "nonexistent@gmail.com",
@@ -117,8 +98,8 @@ def test_login_nonexistent_user():
     assert response.json()["detail"] == "Invalid credentials"
 
 
-def test_get_current_user_success():
-    client.post(
+async def test_get_current_user_success(client):
+    await client.post(
         "/auth/register",
         json={
             "email": "bob_wrong_pws@gmail.com",
@@ -126,7 +107,7 @@ def test_get_current_user_success():
         },
     )
 
-    login_res = client.post(
+    login_res = await client.post(
         "/auth/login",
         data={
             "username": "bob_wrong_pws@gmail.com",
@@ -135,17 +116,17 @@ def test_get_current_user_success():
     )
     token = login_res.json()["access_token"]
 
-    response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    response = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 200
     assert response.json()["email"] == "bob_wrong_pws@gmail.com"
 
 
-def test_get_current_user_no_token():
-    response = client.get("/auth/me")
+async def test_get_current_user_no_token(client):
+    response = await client.get("/auth/me")
     assert response.status_code == 401
 
 
-def test_get_current_user_invalid_token():
-    response = client.get("/auth/me", headers={"Authorization": "Bearer invalidtoken123"})
+async def test_get_current_user_invalid_token(client):
+    response = await client.get("/auth/me", headers={"Authorization": "Bearer invalidtoken123"})
     assert response.status_code == 401

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.database import get_db
@@ -17,10 +17,10 @@ router = APIRouter(prefix="/projects", tags=["projects"])
     response_model=ProjectPublic,
     status_code=status.HTTP_201_CREATED,
 )
-def create_projects(
+async def create_projects(
     project_data: ProjectCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
 
     project = Project(
@@ -30,8 +30,8 @@ def create_projects(
     )
     
     db.add(project)
-    db.commit()
-    db.refresh(project)
+    await db.commit()
+    await db.refresh(project)
     return project
 
 
@@ -39,24 +39,26 @@ def create_projects(
     "",
     response_model=list[ProjectPublic],
 )
-def get_projects(
+async def get_projects(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     query = select(Project).where(Project.owner_id == current_user.id)
-    return db.execute(query).scalars().all()
+    result = await db.execute(query)
+    projects = result.scalars().all()
+    return projects
 
 
 @router.get(
     "/{project_id}",
     response_model=ProjectPublic,
 )
-def get_project(
+async def get_project(
     project_id: int,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    result = db.execute(select(Project).where(Project.id == project_id))
+    result = await db.execute(select(Project).where(Project.id == project_id))
 
     project = result.scalars().first()
 
@@ -74,13 +76,13 @@ def get_project(
     "/{project_id}",
     response_model=ProjectPublic,
 )
-def update_project(
+async def update_project(
     project_id: int,
     project_data: ProjectUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db), 
+    db: AsyncSession = Depends(get_db), 
 ):
-    result = db.execute(select(Project).where(Project.id == project_id))
+    result = await db.execute(select(Project).where(Project.id == project_id))
 
     project = result.scalars().first()
 
@@ -94,8 +96,8 @@ def update_project(
     for key, value in update_data.items():
         setattr(project, key, value)
 
-    db.commit()
-    db.refresh(project)
+    await db.commit()
+    await db.refresh(project)
     return project
 
 
@@ -103,12 +105,12 @@ def update_project(
     "/{project_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-def delete_project(
+async def delete_project(
     project_id: int,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db), 
+    db: AsyncSession = Depends(get_db), 
 ):
-    result = db.execute(select(Project).where(Project.id == project_id))
+    result = await db.execute(select(Project).where(Project.id == project_id))
 
     project = result.scalars().first()
 
@@ -118,6 +120,6 @@ def delete_project(
     if project.owner_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
 
-    db.delete(project)
-    db.commit()
+    await db.delete(project)
+    await db.commit()
     return None

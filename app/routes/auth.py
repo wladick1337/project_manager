@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, status, HTTPException, Query
+from fastapi import APIRouter, Depends, status, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.database import get_db
@@ -18,13 +18,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
     response_model=UserPublic,
     status_code=status.HTTP_201_CREATED,
     )
-def register(
+async def register(
     user: UserCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
         ):
 
     query = select(User).where(User.email == user.email)
-    result = db.execute(query)
+    result = await db.execute(query)
     existing_user = result.scalars().first()
 
     if existing_user:
@@ -34,19 +34,20 @@ def register(
     new_user = User(email=user.email, hashed_password=hashed)
 
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    await db.commit()
+    await db.refresh(new_user)
     return new_user
 
 
 @router.post("/login", response_model=Token)
-def login(
+async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
         ):
     
     query = select(User).where(User.email == form_data.username)
-    user = db.execute(query).scalars().first()
+    result = await db.execute(query)
+    user = result.scalars().first()
 
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
@@ -61,5 +62,5 @@ def login(
 
 
 @router.get("/me", response_model=UserPublic)
-def read_users_me(current_user: User = Depends(get_current_user)):
+async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user

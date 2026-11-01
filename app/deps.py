@@ -1,8 +1,8 @@
-import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+import jwt
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import User
@@ -17,9 +17,9 @@ credentials_exception = HTTPException(
 )
 
 
-def get_current_user(
+async def get_current_user(
+    db: AsyncSession = Depends(get_db),
     token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db),
 ) -> User:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -29,12 +29,10 @@ def get_current_user(
     except jwt.PyJWTError:
         raise credentials_exception
 
-    query = select(User).where(User.id == int(user_id))
-    user = db.execute(query).scalars().first()
+    query = await db.execute(select(User).where(User.id == int(user_id)))
+    user = query.scalars().first()
 
     if user is None or not user.is_active:
         raise credentials_exception
 
     return user
-
-

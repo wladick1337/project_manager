@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status, HTTPException, Query
 
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 from sqlalchemy import select
 
 from app.database import get_db
@@ -16,14 +17,14 @@ router = APIRouter(tags=["tasks"])
     status_code=201, 
     response_model=TaskPublic
     )
-def create_tasks(
+async def create_tasks(
     project_id: int, 
     task_data: TaskCreate, 
-    db: Session = Depends(get_db), 
+    db: AsyncSession = Depends(get_db), 
     current_user: User = Depends(get_current_user),
 ):
 
-    result = db.execute(select(Project).where(Project.id == project_id))
+    result = await db.execute(select(Project).where(Project.id == project_id))
 
     project = result.scalars().first()
 
@@ -41,8 +42,8 @@ def create_tasks(
     )
 
     db.add(task)
-    db.commit()
-    db.refresh(task)
+    await db.commit()
+    await db.refresh(task)
     return task
 
 
@@ -50,35 +51,35 @@ def create_tasks(
     "/projects/{project_id}/tasks", 
     response_model=list[TaskPublic]
     )
-def get_tasks(
+async def get_tasks(
     project_id: int,
     limit: int = Query(default=10, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
-    status: TaskStatus | None = Query(default=None),
+    task_status: TaskStatus | None = Query(default=None, alias="status"),
     priority: TaskPriority | None = Query(default=None),
-    db: Session = Depends(get_db), 
+    db: AsyncSession = Depends(get_db), 
     current_user: User = Depends(get_current_user),
 ):
 
-    result = db.execute(select(Project).where(Project.id == project_id))
+    result = await db.execute(select(Project).where(Project.id == project_id))
 
     project = result.scalars().first()
 
     if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
     if project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
 
     query = select(Task).where(Task.project_id == project_id).order_by(Task.id)
 
-    if status:
-        query = query.where(Task.status == status)
+    if task_status:
+        query = query.where(Task.status == task_status)
     if priority:
         query = query.where(Task.priority == priority)
 
     query = query.limit(limit).offset(offset)
-
-    tasks = db.execute(query).scalars().all()
+    result1 = await db.execute(query)
+    tasks = result1.scalars().all()
 
     return tasks
 
@@ -86,13 +87,13 @@ def get_tasks(
     "/tasks/{task_id}",
     response_model=TaskPublic
 )
-def get_task(
+async def get_task(
     task_id: int,
-    db: Session = Depends(get_db), 
+    db: AsyncSession = Depends(get_db), 
     current_user: User = Depends(get_current_user),
 ):
-    result = db.execute(select(Task).where(Task.id == task_id))
-
+    query = select(Task).options(joinedload(Task.project)).where(Task.id == task_id)
+    result = await db.execute(query)
     task = result.scalars().first()
 
     if not task:
@@ -107,14 +108,14 @@ def get_task(
     "/tasks/{task_id}",
     response_model=TaskPublic,
 )
-def update_task(
+async def update_task(
     task_id: int,
     task_data: TaskUpdate,
-    db: Session = Depends(get_db), 
+    db: AsyncSession = Depends(get_db), 
     current_user: User = Depends(get_current_user),
 ):
-    result = db.execute(select(Task).where(Task.id == task_id))
-
+    query = select(Task).options(joinedload(Task.project)).where(Task.id == task_id)
+    result = await db.execute(query)
     task = result.scalars().first()
 
     if not task:
@@ -126,8 +127,8 @@ def update_task(
     for key, value in update_data.items():
         setattr(task, key, value)
 
-    db.commit()
-    db.refresh(task)
+    await db.commit()
+    await db.refresh(task)
     return task
 
 
@@ -135,13 +136,13 @@ def update_task(
     "/tasks/{task_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-def delete_task(
+async def delete_task(
     task_id: int,
-    db: Session = Depends(get_db), 
+    db: AsyncSession = Depends(get_db), 
     current_user: User = Depends(get_current_user), 
 ):
-    result = db.execute(select(Task).where(Task.id == task_id))
-
+    query = select(Task).options(joinedload(Task.project)).where(Task.id == task_id)
+    result = await db.execute(query)
     task = result.scalars().first()
 
     if not task:
@@ -149,6 +150,6 @@ def delete_task(
     if task.project.owner_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
 
-    db.delete(task)
-    db.commit()
+    await db.delete(task)
+    await db.commit()
     return None
