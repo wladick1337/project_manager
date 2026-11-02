@@ -1,12 +1,14 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.models import TaskPriority, TaskStatus
+
 
 class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
+
 
 class UserPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -15,6 +17,7 @@ class UserPublic(BaseModel):
     email: EmailStr
     is_active: bool
     created_at: datetime
+
 
 class Token(BaseModel):
     access_token: str
@@ -25,9 +28,11 @@ class ProjectCreate(BaseModel):
     title: str = Field(min_length=1, max_length=100)
     description: str | None = None
 
+
 class ProjectUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
+
 
 class ProjectPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -45,11 +50,13 @@ class TaskCreate(BaseModel):
     status: TaskStatus = TaskStatus.TODO
     priority: TaskPriority = TaskPriority.MEDIUM
 
+
 class TaskUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
     status: TaskStatus | None = None
     priority: TaskPriority | None = None
+
 
 class TaskPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -58,6 +65,6 @@ class TaskPublic(BaseModel):
     title: str
     description: str | None = None
     status: TaskStatus
-    priority:TaskPriority
+    priority: TaskPriority
     project_id: int
     created_at: datetime

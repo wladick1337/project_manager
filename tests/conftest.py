@@ -28,7 +28,10 @@ async def client():
 def auth_headers(client):
     async def _get(email: str = "test@example.com", password: str = "password123"):
         await client.post("/auth/register", json={"email": email, "password": password})
-        login_res = await client.post("/auth/login", data={"username": email, "password": password})
+        login_res = await client.post(
+            "/auth/login", data={"username": email, "password": password}
+        )
         token = login_res.json()["access_token"]
         return {"Authorization": f"Bearer {token}"}
+
     return _get

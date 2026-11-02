@@ -116,7 +116,9 @@ async def test_get_current_user_success(client):
     )
     token = login_res.json()["access_token"]
 
-    response = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    response = await client.get(
+        "/auth/me", headers={"Authorization": f"Bearer {token}"}
+    )
 
     assert response.status_code == 200
     assert response.json()["email"] == "bob_wrong_pws@gmail.com"
@@ -128,5 +130,7 @@ async def test_get_current_user_no_token(client):
 
 
 async def test_get_current_user_invalid_token(client):
-    response = await client.get("/auth/me", headers={"Authorization": "Bearer invalidtoken123"})
+    response = await client.get(
+        "/auth/me", headers={"Authorization": "Bearer invalidtoken123"}
+    )
     assert response.status_code == 401
