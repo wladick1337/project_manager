@@ -20,7 +20,7 @@ if not DATABASE_URL:
 # Создаём асинхронный движок
 engine = create_async_engine(
     DATABASE_URL,
-    echo=False,          # Поставь True, если нужно смотреть сырые SQL-запросы в консоли
+    echo=False,  # Поставь True, если нужно смотреть сырые SQL-запросы в консоли
     future=True,
 )
 

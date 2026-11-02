@@ -45,7 +45,7 @@ async def test_task_lifecycle(client, auth_headers):
     )
 
     assert update_task.status_code == 200
-    assert update_task.json()['status'] == 'done'
+    assert update_task.json()["status"] == "done"
 
     delete_task = await client.delete(
         f"/tasks/{task_id}",
@@ -143,7 +143,9 @@ async def test_task_pagination_and_filtering(client, auth_headers):
     headers = await auth_headers("filter_user@gmail.com")
 
     # 1. Создаем проект
-    proj = await client.post("/projects", json={"title": "Filters Project"}, headers=headers)
+    proj = await client.post(
+        "/projects", json={"title": "Filters Project"}, headers=headers
+    )
     proj1 = proj.json()
     proj_id = proj1["id"]
 
@@ -165,15 +167,21 @@ async def test_task_pagination_and_filtering(client, auth_headers):
     )
 
     # 3. Проверяем фильтрацию по статусу
-    res_todo = await client.get(f"/projects/{proj_id}/tasks?status=todo", headers=headers)
+    res_todo = await client.get(
+        f"/projects/{proj_id}/tasks?status=todo", headers=headers
+    )
     assert res_todo.status_code == 200
     assert len(res_todo.json()) == 2
 
     # 4. Проверяем limit и offset
-    res_limit = await client.get(f"/projects/{proj_id}/tasks?limit=2&offset=0", headers=headers)
+    res_limit = await client.get(
+        f"/projects/{proj_id}/tasks?limit=2&offset=0", headers=headers
+    )
     assert len(res_limit.json()) == 2
     assert res_limit.json()[0]["title"] == "Task 1"
 
-    res_offset = await client.get(f"/projects/{proj_id}/tasks?limit=2&offset=2", headers=headers)
+    res_offset = await client.get(
+        f"/projects/{proj_id}/tasks?limit=2&offset=2", headers=headers
+    )
     assert len(res_offset.json()) == 1
     assert res_offset.json()[0]["title"] == "Task 3"

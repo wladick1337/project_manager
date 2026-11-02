@@ -33,4 +33,28 @@ dev = [
     "httpx2>=2.13.1",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.1",
+    "ruff>=0.17.3",
 ]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+exclude = [
+    ".git",
+    ".venv",
+    "alembic/versions",  # сгенерированные миграции проверять не нужно
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # ошибки стиля PEP8 (pycodestyle)
+    "W",   # предупреждения стиля PEP8
+    "F",   # поиск багов (неиспользуемые переменные, забытые импорты)
+    "I",   # сортировка импортов (isort)
+    "B",   # типичные баги и ловушки Python (flake8-bugbear)
+    "UP",  # автоматическое обновление старого синтаксиса до Python 3.12 (pyupgrade)
+]
+ignore = [
+    "B008",  # разрешает вызов функций в параметрах (критично для Depends() и Query() в FastAPI)
+]
+
