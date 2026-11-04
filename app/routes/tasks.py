@@ -65,7 +65,6 @@ async def get_tasks(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # 1. Проверяем существование проекта и права доступа
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalars().first()
 
@@ -78,32 +77,28 @@ async def get_tasks(
             status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
         )
 
-    cache_key = f"tasks:project:{project_id}:p:{params.page}:s:{params.size}:st:{task_status}:pr:{priority}"
+    cache_key = (
+        f"tasks:project:{project_id}:p:{params.page}:"
+        f"s:{params.size}:st:{task_status}:pr:{priority}"
+    )
 
     cached_data = await redis.get(cache_key)
 
-    # Если ключ найден в Redis — возвращаем распарсенный JSON
     if cached_data:
-        # json.loads превращает строку обратно в dict
         return json.loads(cached_data)
-    # 2. Формируем базовый запрос выборки задач проекта
 
     query = select(Task).where(Task.project_id == project_id).order_by(Task.id)
 
-    # 3. Применяем фильтры (если клиент их передал)
     if task_status:
         query = query.where(Task.status == task_status)
     if priority:
         query = query.where(Task.priority == priority)
 
-    # 4. Делегируем подсчет total и нарезку limit/offset нашей функции
     items, total = await paginate(db, query, params)
 
-    # Превращаем ORM-модели SQLAlchemy в Pydantic-схемы TaskPublic
     task_items = [TaskPublic.model_validate(item) for item in items]
     page_response = Page.create(items=task_items, total=total, params=params)
 
-    # Теперь page_response состоит из валидных Pydantic-моделей и сериализуется без ошибок
     await redis.set(
         cache_key,
         page_response.model_dump_json(),

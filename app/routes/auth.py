@@ -6,16 +6,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import get_current_user
 from app.models import User
+from app.rate_limiter import RateLimiter
 from app.schemas import Token, UserCreate, UserPublic
 from app.security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+login_limiter = RateLimiter(times=5, seconds=60)
+
+register_limiter = RateLimiter(times=3, seconds=60)
+
+
 @router.post(
     "/register",
     response_model=UserPublic,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(register_limiter)],
 )
 async def register(
     user: UserCreate,
@@ -40,7 +47,11 @@ async def register(
     return new_user
 
 
-@router.post("/login", response_model=Token)
+@router.post(
+    "/login",
+    response_model=Token,
+    dependencies=[Depends(login_limiter)],
+)
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
