@@ -2,12 +2,15 @@ import os
 from collections.abc import AsyncGenerator
 
 from dotenv import load_dotenv
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
+
+from app.schemas1.pagination import PaginationParams
 
 load_dotenv()
 
@@ -43,3 +46,24 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             yield session
         finally:
             await session.close()
+
+
+async def paginate(
+    db: AsyncSession,
+    query: Select,
+    params: PaginationParams,
+) -> tuple[list, int]:
+    """Выполняет подсчет total и забирает нужный срез записей."""
+
+    count_subquery = query.order_by(None).subquery()
+    count_query = select(func.count()).select_from(count_subquery)
+
+    total_result = await db.execute(count_query)
+    total = total_result.scalar_one()
+
+    paginated_query = query.offset(params.offset).limit(params.size)
+
+    data_result = await db.execute(paginated_query)
+    items = list(data_result.scalars().all())
+
+    return items, total

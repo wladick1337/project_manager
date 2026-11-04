@@ -3,10 +3,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.database import get_db
+from app.database import get_db, paginate
 from app.deps import get_current_user
 from app.models import Project, Task, TaskPriority, TaskStatus, User
 from app.schemas import TaskCreate, TaskPublic, TaskUpdate
+from app.schemas1.pagination import Page, PaginationParams
 
 router = APIRouter(tags=["tasks"])
 
@@ -46,19 +47,17 @@ async def create_tasks(
     return task
 
 
-@router.get("/projects/{project_id}/tasks", response_model=list[TaskPublic])
+@router.get("/projects/{project_id}/tasks", response_model=Page[TaskPublic])
 async def get_tasks(
     project_id: int,
-    limit: int = Query(default=10, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
+    params: PaginationParams = Depends(),
     task_status: TaskStatus | None = Query(default=None, alias="status"),
     priority: TaskPriority | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-
+    # 1. Проверяем существование проекта и права доступа
     result = await db.execute(select(Project).where(Project.id == project_id))
-
     project = result.scalars().first()
 
     if not project:
@@ -70,18 +69,20 @@ async def get_tasks(
             status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
         )
 
+    # 2. Формируем базовый запрос выборки задач проекта
     query = select(Task).where(Task.project_id == project_id).order_by(Task.id)
 
+    # 3. Применяем фильтры (если клиент их передал)
     if task_status:
         query = query.where(Task.status == task_status)
     if priority:
         query = query.where(Task.priority == priority)
 
-    query = query.limit(limit).offset(offset)
-    result1 = await db.execute(query)
-    tasks = result1.scalars().all()
+    # 4. Делегируем подсчет total и нарезку limit/offset нашей функции
+    items, total = await paginate(db, query, params)
 
-    return tasks
+    # 5. Возвращаем готовую Pydantic-схему со всеми метаданными
+    return Page.create(items=items, total=total, params=params)
 
 
 @router.get("/tasks/{task_id}", response_model=TaskPublic)
