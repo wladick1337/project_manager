@@ -29,7 +29,9 @@ async def test_task_lifecycle(client, auth_headers):
     )
 
     assert get_tasks.status_code == 200
-    assert len(get_tasks.json()) == 1
+    tasks_data = get_tasks.json()
+    assert tasks_data["total"] == 1
+    assert len(tasks_data["items"]) == 1
 
     get_task = await client.get(
         f"/tasks/{task_id}",
@@ -171,17 +173,27 @@ async def test_task_pagination_and_filtering(client, auth_headers):
         f"/projects/{proj_id}/tasks?status=todo", headers=headers
     )
     assert res_todo.status_code == 200
-    assert len(res_todo.json()) == 2
+    data_todo = res_todo.json()
+    assert data_todo["total"] == 2
+    assert len(data_todo["items"]) == 2
 
-    # 4. Проверяем limit и offset
-    res_limit = await client.get(
-        f"/projects/{proj_id}/tasks?limit=2&offset=0", headers=headers
+    # 4. Проверяем page и size (пагинацию)
+    res_page1 = await client.get(
+        f"/projects/{proj_id}/tasks?page=1&size=2", headers=headers
     )
-    assert len(res_limit.json()) == 2
-    assert res_limit.json()[0]["title"] == "Task 1"
+    assert res_page1.status_code == 200
+    data_page1 = res_page1.json()
+    assert data_page1["total"] == 3
+    assert data_page1["page"] == 1
+    assert data_page1["pages"] == 2
+    assert len(data_page1["items"]) == 2
+    assert data_page1["items"][0]["title"] == "Task 1"
 
-    res_offset = await client.get(
-        f"/projects/{proj_id}/tasks?limit=2&offset=2", headers=headers
+    res_page2 = await client.get(
+        f"/projects/{proj_id}/tasks?page=2&size=2", headers=headers
     )
-    assert len(res_offset.json()) == 1
-    assert res_offset.json()[0]["title"] == "Task 3"
+    assert res_page2.status_code == 200
+    data_page2 = res_page2.json()
+    assert data_page2["page"] == 2
+    assert len(data_page2["items"]) == 1
+    assert data_page2["items"][0]["title"] == "Task 3"
