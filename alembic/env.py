@@ -1,5 +1,4 @@
 import asyncio
-import os
 from logging.config import fileConfig
 
 from dotenv import load_dotenv
@@ -9,7 +8,8 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 import app.models  # noqa: F401
 from alembic import context
-from app.database import DATABASE_URL, Base
+from app.config import DATABASE_URL, settings
+from app.database import Base
 
 load_dotenv()
 
@@ -18,7 +18,7 @@ load_dotenv()
 config = context.config
 
 if DATABASE_URL:
-    config.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL"))
+    config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:

@@ -134,3 +134,20 @@ async def test_get_current_user_invalid_token(client):
         "/auth/me", headers={"Authorization": "Bearer invalidtoken123"}
     )
     assert response.status_code == 401
+
+
+async def test_rate_limiter_blocks_after_threshold(client):
+    for _ in range(5):
+        res = await client.post(
+            "/auth/login",
+            data={"username": "wrong@test.com", "password": "wrongpassword"},
+        )
+        assert res.status_code in (400, 401)
+
+    blocked_res = await client.post(
+        "/auth/login",
+        data={"username": "wrong@test.com", "password": "wrongpassword"},
+    )
+    assert blocked_res.status_code == 429
+    assert blocked_res.json()["detail"] == "Too many requests. Please try again later."
+    assert "Retry-After" in blocked_res.headers

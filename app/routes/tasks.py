@@ -1,4 +1,7 @@
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -6,6 +9,7 @@ from sqlalchemy.orm import joinedload
 from app.database import get_db, paginate
 from app.deps import get_current_user
 from app.models import Project, Task, TaskPriority, TaskStatus, User
+from app.redis import get_redis, invalidate_project_tasks_cache
 from app.schemas import TaskCreate, TaskPublic, TaskUpdate
 from app.schemas1.pagination import Page, PaginationParams
 
@@ -16,6 +20,7 @@ router = APIRouter(tags=["tasks"])
 async def create_tasks(
     project_id: int,
     task_data: TaskCreate,
+    redis: Redis = Depends(get_redis),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -44,6 +49,9 @@ async def create_tasks(
     db.add(task)
     await db.commit()
     await db.refresh(task)
+
+    await invalidate_project_tasks_cache(redis, project_id)
+
     return task
 
 
@@ -53,10 +61,10 @@ async def get_tasks(
     params: PaginationParams = Depends(),
     task_status: TaskStatus | None = Query(default=None, alias="status"),
     priority: TaskPriority | None = Query(default=None),
+    redis: Redis = Depends(get_redis),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # 1. Проверяем существование проекта и права доступа
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalars().first()
 
@@ -69,20 +77,35 @@ async def get_tasks(
             status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
         )
 
-    # 2. Формируем базовый запрос выборки задач проекта
+    cache_key = (
+        f"tasks:project:{project_id}:p:{params.page}:"
+        f"s:{params.size}:st:{task_status}:pr:{priority}"
+    )
+
+    cached_data = await redis.get(cache_key)
+
+    if cached_data:
+        return json.loads(cached_data)
+
     query = select(Task).where(Task.project_id == project_id).order_by(Task.id)
 
-    # 3. Применяем фильтры (если клиент их передал)
     if task_status:
         query = query.where(Task.status == task_status)
     if priority:
         query = query.where(Task.priority == priority)
 
-    # 4. Делегируем подсчет total и нарезку limit/offset нашей функции
     items, total = await paginate(db, query, params)
 
-    # 5. Возвращаем готовую Pydantic-схему со всеми метаданными
-    return Page.create(items=items, total=total, params=params)
+    task_items = [TaskPublic.model_validate(item) for item in items]
+    page_response = Page.create(items=task_items, total=total, params=params)
+
+    await redis.set(
+        cache_key,
+        page_response.model_dump_json(),
+        ex=60,
+    )
+
+    return page_response
 
 
 @router.get("/tasks/{task_id}", response_model=TaskPublic)
@@ -114,6 +137,7 @@ async def get_task(
 async def update_task(
     task_id: int,
     task_data: TaskUpdate,
+    redis: Redis = Depends(get_redis),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -136,6 +160,9 @@ async def update_task(
 
     await db.commit()
     await db.refresh(task)
+
+    await invalidate_project_tasks_cache(redis, task.project_id)
+
     return task
 
 
@@ -145,6 +172,7 @@ async def update_task(
 )
 async def delete_task(
     task_id: int,
+    redis: Redis = Depends(get_redis),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -161,6 +189,11 @@ async def delete_task(
             status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
         )
 
+    project_id = task.project_id
+
     await db.delete(task)
     await db.commit()
+
+    await invalidate_project_tasks_cache(redis, project_id)
+
     return None

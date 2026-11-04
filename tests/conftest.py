@@ -4,6 +4,19 @@ from sqlalchemy import text
 
 from app.database import engine
 from app.main import app
+from app.redis import close_redis, init_redis
+
+
+@pytest.fixture(autouse=True)
+async def setup_redis():
+    """Инициализирует Redis перед тестами и очищает кэш между прогонами."""
+    client = await init_redis()
+    # Очищаем тестовую базу Redis от ключей предыдущих тестов
+    await client.flushdb()
+
+    yield
+
+    await close_redis()
 
 
 @pytest.fixture(autouse=True)
