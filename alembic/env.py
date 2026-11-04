@@ -1,5 +1,4 @@
 import asyncio
-import os
 from logging.config import fileConfig
 
 from dotenv import load_dotenv
@@ -9,7 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 import app.models  # noqa: F401
 from alembic import context
-from app.config import settings, DATABASE_URL
+from app.config import DATABASE_URL, settings
 from app.database import Base
 
 load_dotenv()
