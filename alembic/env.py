@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 import app.models  # noqa: F401
 from alembic import context
-from app.database import DATABASE_URL, Base
+from app.config import DATABASE_URL
+from app.database import Base
 
 load_dotenv()
 
