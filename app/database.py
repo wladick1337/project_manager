@@ -1,7 +1,6 @@
-import os
 from collections.abc import AsyncGenerator
 
-from dotenv import load_dotenv
+from app.config import settings
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -12,18 +11,10 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.schemas1.pagination import PaginationParams
 
-load_dotenv()
 
-# Получаем строку подключения
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL is not set in environment variables")
-
-# Создаём асинхронный движок
 engine = create_async_engine(
-    DATABASE_URL,
-    echo=False,  # Поставь True, если нужно смотреть сырые SQL-запросы в консоли
+    settings.DATABASE_URL,
+    echo=False,
     future=True,
 )
 
