@@ -18,6 +18,7 @@ async def setup_redis():
 
     await close_redis()
 
+
 @pytest.fixture(autouse=True)
 async def clean_db():
     async with engine.begin() as connection:

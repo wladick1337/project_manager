@@ -6,6 +6,7 @@ from app.config import settings
 # Глобальная переменная для хранения клиента
 redis_client: Redis | None = None
 
+
 async def invalidate_project_tasks_cache(redis: Redis, project_id: int) -> None:
     """Удаляет все закэшированные страницы задач для конкретного проекта."""
     # Ищем все ключи, соответствующие шаблону проекта
@@ -16,7 +17,7 @@ async def invalidate_project_tasks_cache(redis: Redis, project_id: int) -> None:
     if keys:
         await redis.delete(*keys)
 
-        
+
 async def init_redis() -> Redis:
     """Инициализирует пул соединений и клиента Redis при старте приложения."""
     global redis_client

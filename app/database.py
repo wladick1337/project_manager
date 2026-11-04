@@ -1,6 +1,5 @@
 from collections.abc import AsyncGenerator
 
-from app.config import settings
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -9,8 +8,8 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import DeclarativeBase
 
+from app.config import settings
 from app.schemas1.pagination import PaginationParams
-
 
 engine = create_async_engine(
     settings.DATABASE_URL,
