@@ -1,17 +1,16 @@
 import os
 from collections.abc import AsyncGenerator
 
-from app.schemas1.pagination import PaginationParams
-
 from dotenv import load_dotenv
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import Select, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.schemas1.pagination import PaginationParams
 
 load_dotenv()
 
@@ -58,12 +57,12 @@ async def paginate(
 
     count_subquery = query.order_by(None).subquery()
     count_query = select(func.count()).select_from(count_subquery)
-    
+
     total_result = await db.execute(count_query)
     total = total_result.scalar_one()
 
     paginated_query = query.offset(params.offset).limit(params.size)
-    
+
     data_result = await db.execute(paginated_query)
     items = list(data_result.scalars().all())
 

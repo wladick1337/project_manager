@@ -1,15 +1,12 @@
 import math
+from typing import TypeVar
 
 from fastapi import Query
-
-from typing import Generic, TypeVar
-
-from pydantic import BaseModel, Field
-
+from pydantic import BaseModel
 
 T = TypeVar("T")
 
-    
+
 class PaginationParams:
     """Извлекает и валидирует query-параметры page и size из запроса."""
 
@@ -24,7 +21,7 @@ class PaginationParams:
         self.offset = (self.page - 1) * self.size
 
 
-class Page(BaseModel, Generic[T]):
+class Page[T](BaseModel):
     """Универсальная схема ответа c метаданными пагинации."""
 
     items: list[T]

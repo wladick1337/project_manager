@@ -3,11 +3,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.schemas1.pagination import Page, PaginationParams
 from app.database import get_db, paginate
 from app.deps import get_current_user
 from app.models import Project, Task, TaskPriority, TaskStatus, User
 from app.schemas import TaskCreate, TaskPublic, TaskUpdate
+from app.schemas1.pagination import Page, PaginationParams
 
 router = APIRouter(tags=["tasks"])
 
