@@ -1,7 +1,14 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.exceptions import (
+    http_exception_handler,
+    unhandled_exception_handler,
+    validation_exception_handler,
+)
 from app.redis import close_redis, init_redis
 from app.routes.auth import router as auth_router
 from app.routes.project import router as projects_router
@@ -27,3 +34,8 @@ app.include_router(tasks_router)
 @app.get("/")
 def health():
     return {"status": "ok"}
+
+
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
