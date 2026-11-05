@@ -1,4 +1,3 @@
-```markdown
 # Project Manager API (TaskFlow)
 
 ![Python](https://img.shields.io/badge/python-3.12-blue.svg)
@@ -65,8 +64,6 @@
 ├── Dockerfile               # Production-образ на базе python:3.12-slim
 ├── pyproject.toml           # Конфигурация проекта, зависимостей и линтеров
 └── uv.lock                  # Зафиксированные версии пакетов для детерминированной сборки
-
-```
 
 ---
 
