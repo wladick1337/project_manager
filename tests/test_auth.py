@@ -38,7 +38,7 @@ async def test_register_duplicate_email(client):
 
     assert response.status_code == 400
 
-    assert response.json()["detail"] == "Email already registered"
+    assert response.json()["error"]["message"] == "Email already registered"
 
 
 async def test_login_success(client):
@@ -82,7 +82,7 @@ async def test_login_wrong_password(client):
     )
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "Invalid credentials"
+    assert response.json()["error"]["message"] == "Invalid credentials"
 
 
 async def test_login_nonexistent_user(client):
@@ -95,7 +95,7 @@ async def test_login_nonexistent_user(client):
     )
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "Invalid credentials"
+    assert response.json()["error"]["message"] == "Invalid credentials"
 
 
 async def test_get_current_user_success(client):
@@ -149,5 +149,8 @@ async def test_rate_limiter_blocks_after_threshold(client):
         data={"username": "wrong@test.com", "password": "wrongpassword"},
     )
     assert blocked_res.status_code == 429
-    assert blocked_res.json()["detail"] == "Too many requests. Please try again later."
+    assert (
+        blocked_res.json()["error"]["message"]
+        == "Too many requests. Please try again later."
+    )
     assert "Retry-After" in blocked_res.headers

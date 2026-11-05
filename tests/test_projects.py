@@ -40,7 +40,7 @@ async def test_user_cannot_access_other_user_project(client, auth_headers):
 
     # Проверяем, что сработала наша проверка на 403 Forbidden
     assert response.status_code == 403
-    assert response.json()["detail"] == "Not enough permissions"
+    assert response.json()["error"]["message"] == "Not enough permissions"
 
 
 # 4. Тест: Удаление проекта и проверка 404
@@ -62,4 +62,4 @@ async def test_delete_project_success(client, auth_headers):
     # Пробуем запросить удалённый проект снова — ожидаем 404
     get_res = await client.get(f"/projects/{project_id}", headers=headers)
     assert get_res.status_code == 404
-    assert get_res.json()["detail"] == "Project not found"
+    assert get_res.json()["error"]["message"] == "Project not found"
